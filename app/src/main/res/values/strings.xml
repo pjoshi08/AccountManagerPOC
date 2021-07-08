@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">AccountManagerPOC</string>
+    <string name="email_hint">Email</string>
+    <string name="password_hint">Password</string>
+    <string name="sign_in_label">Sign In or Register</string>
+    <string name="add_account_label">Add Account</string>
+    <string name="get_authtoken_by_features">Get AuthToken By Features</string>
+    <string name="get_authtoken">Get AuthToken</string>
+    <string name="invalidate_authtoken">Invalidate AuthToken</string>
+    <string name="auth_label">Authenticator</string>
 </resources>
