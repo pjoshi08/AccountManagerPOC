@@ -2,20 +2,16 @@ package com.ril.ampoc.view;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
-import android.accounts.AccountManagerCallback;
 import android.accounts.AccountManagerFuture;
-import android.app.AlertDialog;
+import android.content.ComponentName;
 import android.content.Intent;
-import android.os.OperationCanceledException;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.widget.ArrayAdapter;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.ril.ampoc.R;
-import com.ril.ampoc.util.AccountUtils;
+import com.ril.ampoc.model.User;
 import com.ril.ampoc.util.AuthPrefs;
 import com.ril.ampoc.util.LongRunningTask;
 import com.ril.ampoc.util.TaskRunner;
@@ -27,32 +23,19 @@ import static com.ril.ampoc.util.AccountUtils.AUTHTOKEN_TYPE_FULL_ACCESS;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String STATE_DIALOG = "state_dialog";
-    private static final String STATE_INVALIDATE = "state_invalidate";
-
     private String TAG = "MainActivity";
     public static final int REQ_SIGNUP =  1;
 
-    private AccountManager accountManager;
+    private AccountManager manager;
     private AuthPrefs authPrefs;
-
-    private TextView text1;
-    private TextView text2;
-    private TextView text3;
-    private AlertDialog alertDialog;
-    private boolean invalidate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        text1 = findViewById(R.id.text1);
-        text2 = findViewById(R.id.text2);
-        text3 = findViewById(R.id.text3);
-
         authPrefs = new AuthPrefs(this);
-        accountManager = AccountManager.get(this);
+        manager = AccountManager.get(this);
 
         findViewById(R.id.btnAddAccount).setOnClickListener(v -> {
             addNewAccount(ACCOUNT_TYPE, AUTHTOKEN_TYPE_FULL_ACCESS);
@@ -70,38 +53,13 @@ public class MainActivity extends AppCompatActivity {
             showAccountPicker(AUTHTOKEN_TYPE_FULL_ACCESS, true);
         });
 
-        if (savedInstanceState != null) {
-            boolean showDialog = savedInstanceState.getBoolean(STATE_DIALOG);
-            boolean invalidate = savedInstanceState.getBoolean(STATE_INVALIDATE);
-            if (showDialog) {
-                showAccountPicker(AUTHTOKEN_TYPE_FULL_ACCESS, invalidate);
-            }
-        }
-
-        /*accountManager.getAuthTokenByFeatures(
-                AccountUtils.ACCOUNT_TYPE,
-                AccountUtils.AUTH_TOKEN_TYPE,
-                null,
-                this,
-                null,
-                null,
-                new GetAuthTokenCallback(),
-                null
-        );*/
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-
-        if (alertDialog != null && alertDialog.isShowing()) {
-            outState.putBoolean(STATE_DIALOG, true);
-            outState.putBoolean(STATE_INVALIDATE, invalidate);
-        }
+        findViewById(R.id.btnSendData).setOnClickListener(v -> {
+            sendAccountDetails(AUTHTOKEN_TYPE_FULL_ACCESS);
+        });
     }
 
     private void getTokenForAccountCreateIfNeeded(String accountType, String authTokenType) {
-        accountManager.getAuthTokenByFeatures(
+        manager.getAuthTokenByFeatures(
                 accountType,
                 authTokenType,
                 null,
@@ -117,40 +75,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showAccountPicker(String authTokenType, boolean invalidate) {
-        this.invalidate = invalidate;
 
-        final Account[] availableAccounts = accountManager.getAccountsByType(ACCOUNT_TYPE);
+        final Account[] availableAccounts = manager.getAccountsByType(ACCOUNT_TYPE);
 
-        int len = availableAccounts.length;
-        String[] names = new String[len];
-        if (len == 0) {
+        if (availableAccounts.length == 0) {
             showMessage("No Accounts");
             return;
-        } else {
-            for (int i = 0; i < len; i++) {
-                names[i] = availableAccounts[i].name;
-            }
         }
 
-        alertDialog = new AlertDialog.Builder(this)
-                .setTitle("Pick Account")
-                .setAdapter(
-                        new ArrayAdapter<>(
-                                getBaseContext(), android.R.layout.simple_list_item_1, names
-                        ),
-                        (dialog, which) -> {
-                            if (invalidate) {
-                                invalidateAuthToken(availableAccounts[which], authTokenType);
-                            } else {
-                                getExistingAuthToken(availableAccounts[which], authTokenType);
-                            }
-                        })
-                .create();
-        alertDialog.show();
+        if (invalidate) {
+            invalidateAuthToken(availableAccounts[0], authTokenType);
+        } else {
+            getExistingAuthToken(availableAccounts[0], authTokenType);
+        }
     }
 
     private void getExistingAuthToken(Account availableAccount, String authTokenType) {
-        final AccountManagerFuture<Bundle> future = accountManager.getAuthToken(
+        final AccountManagerFuture<Bundle> future = manager.getAuthToken(
                 availableAccount, authTokenType,
                 null, this,
                 null, null);
@@ -158,7 +99,8 @@ public class MainActivity extends AppCompatActivity {
         new TaskRunner()
                 .executeAsync(
                         new LongRunningTask( // DoInBackground
-                                (Function<AccountManagerFuture<Bundle>, String>) input -> getAuthTokenFromAccountManagerFuture(input),
+                                (Function<AccountManagerFuture<Bundle>, String>)
+                                        this::getAuthTokenFromAccountManagerFuture,
                                 future
                         ), (authToken) -> { // OnComplete
                             showMessage("Existing Auth Token: " + authToken);
@@ -167,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void invalidateAuthToken(Account account, String authTokenType) {
-        final AccountManagerFuture<Bundle> future = accountManager.getAuthToken(
+        final AccountManagerFuture<Bundle> future = manager.getAuthToken(
                 account,
                 authTokenType,
                 null,
@@ -184,14 +126,14 @@ public class MainActivity extends AppCompatActivity {
                                 future
                         ),
                         (authToken) -> { // On Complete
-                            accountManager.invalidateAuthToken(account.type, (String) authToken);
+                            manager.invalidateAuthToken(account.type, (String) authToken);
                             showMessage(account.name + " invalidated!");
                             Log.d(TAG, account.name + " invalidated!");
                         });
     }
 
     private void addNewAccount(String accountType, String authTokenType) {
-        accountManager.addAccount(
+        manager.addAccount(
                 accountType,
                 authTokenType,
                 null,
@@ -229,48 +171,52 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private class GetAuthTokenCallback implements AccountManagerCallback<Bundle> {
+    private void sendAccountDetails(String authTokenType) {
+        Account availableAccount = manager.getAccountsByType(ACCOUNT_TYPE)[0];
 
-        @Override
-        public void run(AccountManagerFuture<Bundle> result) {
-            Bundle bundle;
+        final AccountManagerFuture<Bundle> future = manager.getAuthToken(
+                availableAccount, authTokenType,
+                null, this,
+                null, null);
+        Log.d(TAG, ">>> Demo Password: " + manager.getPassword(availableAccount));
 
-            try {
-                bundle = result.getResult();
+        new TaskRunner()
+                .executeAsync(
+                        new LongRunningTask (
+                                (Function<AccountManagerFuture<Bundle>, User>)
+                                        this::getAccountDetails,
+                                future
+                        ),
+                        (user) -> sendData((User) user)
+                );
+    }
 
-                final Intent intent = (Intent) bundle.get(AccountManager.KEY_INTENT);
-                if (null != intent) {
-                    startActivityForResult(intent, REQ_SIGNUP);
-                } else {
-                    String authToken = bundle.getString(AccountManager.KEY_AUTHTOKEN);
-                    final String accountName = bundle.getString(AccountManager.KEY_ACCOUNT_NAME);
-
-                    // Save session username & auth token
-                    authPrefs.setAuthToken(authToken);
-                    authPrefs.setUserName(accountName);
-
-                    text1.setText("Retrieved auth token: " + authToken);
-                    text2.setText("Saved account name:" + authPrefs.getAccountName());
-                    text3.setText("Saved auth token: " + authPrefs.getAuthToken());
-
-                    // If the logged account didn't exist, we need to create it on the device
-                    Account account = AccountUtils.getAccount(MainActivity.this, accountName);
-                    if (null == account) {
-                        account = new Account(accountName, AccountUtils.ACCOUNT_TYPE);
-                        accountManager.addAccountExplicitly(account,
-                                bundle.getString(AccountUtils.PARAM_USER_PASS),
-                                null
-                        );
-                        accountManager.setAuthToken(account, AccountUtils.AUTH_TOKEN_TYPE, authToken);
-                    }
-                }
-
-            } catch (OperationCanceledException e) {
-                finish();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
+    private User getAccountDetails(AccountManagerFuture<Bundle> future) {
+        Bundle bundle;
+        try {
+            bundle = future.getResult();
+            final String authToken = bundle.getString(AccountManager.KEY_AUTHTOKEN);
+            String accountname = bundle.getString(AccountManager.KEY_ACCOUNT_NAME);
+            String accPassword = bundle.getString(AccountManager.KEY_PASSWORD);
+            showMessage((accountname != null) ?
+                    ("Success!\nAccName: " + accountname) : "Fail!");
+            Log.d(TAG, "> Password: " + accPassword);
+            Log.d(TAG, "> AuthToken: " + authToken);
+            return new User(accountname, accPassword, authToken);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
+    }
+
+    private void sendData(User user) {
+        Intent intent = new Intent("aidlExample");
+        //intent.putExtra("user", user);
+        //intent.setPackage(IPCAidlInterface.class.getPackage().getName());
+        intent.setComponent(new ComponentName("com.ril.childapp1", "com.ril.childapp1.service.UserService"));
+    }
+
+    public static User getUser() {
+        return new User("demo@example.com", "demo", "demoAuth");
     }
 }

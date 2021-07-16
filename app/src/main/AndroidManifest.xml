@@ -22,16 +22,39 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".view.AuthenticatorActivity" android:label="Log In"/>
-        <service android:name=".authenticator.AuthenticatorService"
-            android:exported="true"
-            android:enabled="true">
+        <activity
+            android:name=".view.AuthenticatorActivity"
+            android:label="Log In" />
+
+        <service
+            android:name=".authenticator.AuthenticatorService"
+            android:enabled="true"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.accounts.AccountAuthenticator" />
             </intent-filter>
-            <meta-data android:name="android.accounts.AccountAuthenticator"
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
                 android:resource="@xml/authenticator" />
         </service>
+
+        <service android:name=".UserService"
+            android:enabled="true"
+            android:exported="true"
+            android:process=":remote">
+            <intent-filter>
+                <action android:name="aidlExample"/>
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".broadcast.SuperBroadcastReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.ril.ampoc.SUPER_INTENT_ACTION"/>
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

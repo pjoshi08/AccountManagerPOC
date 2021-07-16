@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">ChildApp1</string>
+    <string name="trigger_broadcast">Trigger Broadcast</string>
+</resources>

@@ -8,4 +8,5 @@
     <string name="get_authtoken">Get AuthToken</string>
     <string name="invalidate_authtoken">Invalidate AuthToken</string>
     <string name="auth_label">Authenticator</string>
+    <string name="send_user_data">Send User Data</string>
 </resources>

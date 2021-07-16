@@ -11,12 +11,15 @@ import java.util.Map;
 public class ServerAuthenticator implements IServerAuthenticator {
 
     private static final Map<String, String> credentials;
+    public static final Map<String, String> loggedInUsers;
 
     static {
         credentials = new HashMap<>();
         credentials.put("demo@example.com", "demo");
         credentials.put("foo@example.com", "foobar");
         credentials.put("user@example.com", "pass");
+
+        loggedInUsers = new HashMap<>();
     }
 
     @Override
